@@ -165,7 +165,7 @@ def sponsor_for(sponsor_dict):
         return None
 
     # TODO: Don't do regex matching here. Find another way.
-    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner|Rescom\.)) (?P<name>.*?) +\[(?P<party>[DRIL])-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
+    m = re.match(r'(?P<title>(Rep\.|Sen\.|Del\.|Resident Commissioner|Rescom\.)) (?P<name>.*?) +\[(?P<party>[A-Z]{1,3})-(?P<state>[A-Z][A-Z])(-(?P<district>\d{1,2}|At Large|None))?\]$',
         sponsor_dict['fullName'])
 
     if not m:
@@ -536,7 +536,7 @@ def cosponsors_for(cosponsors_list):
     if cosponsors_list is None:
         return []
 
-    cosponsors_list = cosponsors_list['item']
+    cosponsors_list = _as_list(cosponsors_list['item'])
 
     def build_dict(item):
         cosponsor_dict = sponsor_for(item)
@@ -554,6 +554,14 @@ def cosponsors_for(cosponsors_list):
     cosponsors.sort(key = lambda c: c['name'].lower())
 
     return cosponsors
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 
 def related_bills_for(related_bills_list):

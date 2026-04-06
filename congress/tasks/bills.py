@@ -189,8 +189,12 @@ def form_bill_json_dict(xml_as_dict):
         bill_id = build_bill_id(bill_dict['type'].lower(), bill_dict['number'], bill_dict['congress'])
     else:
         bill_id = build_bill_id(bill_dict['billType'].lower(), bill_dict['billNumber'], bill_dict['congress'])
-    titles = bill_info.titles_for(bill_dict['titles']['item'])
-    actions = bill_info.actions_for(bill_dict['actions']['item'], bill_id, bill_info.current_title_for(titles, 'official'))
+    titles = bill_info.titles_for(_as_list(bill_dict['titles']['item']))
+    actions = bill_info.actions_for(
+        _as_list((bill_dict.get('actions') or {}).get('item')),
+        bill_id,
+        bill_info.current_title_for(titles, 'official'),
+    )
     status, status_date = bill_info.latest_status(actions, bill_dict.get('introducedDate', ''))
 
     if bill_dict.get('sponsors') is None and bill_dict['titles']['item'][0]['title'].startswith("Reserved "):
@@ -264,6 +268,14 @@ def form_bill_json_dict(xml_as_dict):
     }
 
     return bill_data
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
 
 def _fixup_top_term_case(term):
     if term in ("Native Americans",):
