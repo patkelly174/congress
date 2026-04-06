@@ -206,7 +206,7 @@ def summary_for(summaries):
 
 def strip_tags(text):
     # Preserve paragraph breaks. Convert closing p tags (and surrounding whitespace) into two newlines. Strip trailing whitespace
-    text = re.sub("\s*</\s*p\s*>\s*", "\n\n", text).strip()
+    text = re.sub(r"\s*</\s*p\s*>\s*", "\n\n", text).strip()
 
     # naive stripping of tags, should work okay in this limited context
     text = re.sub("<[^>]+>", "", text)
@@ -404,7 +404,7 @@ def actions_for(action_list, bill_id, title):
 
         keep = True
         if closure['prev']:
-            if item['sourceSystem'].get('code') == "9":
+            if (item.get('sourceSystem') or {}).get('code') == "9":
                 # Date must match previous action..
                 # If both this and previous have a time, the times must match.
                 # The text must approximately match. Sometimes the LOC text has a prefix
@@ -472,7 +472,7 @@ def action_for(item):
 
     # remove and extract references
     references = []
-    match = re.search("\s*\(([^)]+)\)\s*$", text)
+    match = re.search(r"\s*\(([^)]+)\)\s*$", text)
     if match:
         # remove the matched section
         text = text[0:match.start()] + text[match.end():]
@@ -487,7 +487,7 @@ def action_for(item):
         types = re.sub("CR:", "CR", types)
         # fix a missing semicolon altogether between references
         # e.g. sres107-112, "consideration: CR S1877-1878 text as"
-        types = re.sub("(\d+) +([a-z])", r"\1; \2", types)
+        types = re.sub(r"(\d+) +([a-z])", r"\1; \2", types)
 
         for reference in re.split("; ?", types):
             if ": " not in reference:
@@ -775,10 +775,10 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         ])
         + ")"
         + "(, the objections of the President to the contrary notwithstanding.?)?"
-        + "(, as amended| \(Amended\))?"
-        + "\.? (Passed|Failed|Agreed to|Rejected)?" # hr1625-115 has a stray period here
-        + " ?(by voice vote|without objection|by (the Yeas and Nays?|Yea-Nay Vote|recorded vote)"
-        + "(:? \(2/3 required\))?: (\d+ ?- ?\d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
+        + r"(, as amended| \(Amended\))?"
+        + r"\.? (Passed|Failed|Agreed to|Rejected)?" # hr1625-115 has a stray period here
+        + r" ?(by voice vote|without objection|by (the Yeas and Nays?|Yea-Nay Vote|recorded vote)"
+        + r"(:? \(2/3 required\))?: (\d+ ?- ?\d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
     if m != None:
         motion, is_override, as_amended, pass_fail, how = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
@@ -895,7 +895,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     # agreed-to motions to table.
     m = re.search("On motion to table the measure Agreed to"
         + " ?(by voice vote|without objection|by (the Yeas and Nays|Yea-Nay Vote|recorded vote)"
-        + ": (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
+        + r": (\d+ - \d+(, \d+ Present)? [ \)]*)?\((Roll no\.|Record Vote No:) \d+\))",
         line, re.I)
     if m != None:
         how = m.group(1)
@@ -948,7 +948,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
         ])
         + ")"
         + "(,?.*,?) "
-        + "(without objection|by Unanimous Consent|by Voice Vote|(?:by )?Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)",
+        + r"(without objection|by Unanimous Consent|by Voice Vote|(?:by )?Yea-Nay( Vote)?\. \d+\s*-\s*\d+\. Record Vote (No|Number): \d+)",
         line.replace("  ", " "), re.I)
     if m != None:
         motion, extra, how = m.group(1), m.group(2), m.group(3)
@@ -1112,7 +1112,7 @@ def parse_bill_action(action_dict, prev_status, bill_id, title):
     if m != None:
         status = "ENACTED:TENDAYRULE"
 
-    m = re.search("^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
+    m = re.search(r"^(?:Became )?(Public|Private) Law(?: No:)? ([\d\-]+)\.", line, re.I)
     if m != None:
         action["law"] = m.group(1).lower()
         pieces = m.group(2).split("-")
