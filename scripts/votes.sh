@@ -25,3 +25,15 @@ usc-run votes --govtrack --congress=112 --session=2011 $@
 usc-run votes --govtrack --congress=112 --session=2012 $@
 usc-run votes --govtrack --congress=113 --session=2013 $@
 usc-run votes --govtrack --congress=113 --session=2014 $@
+usc-run votes --govtrack --congress=114 --session=2015 $@
+usc-run votes --govtrack --congress=114 --session=2016 $@
+usc-run votes --govtrack --congress=115 --session=2017 $@
+usc-run votes --govtrack --congress=115 --session=2018 $@
+usc-run votes --govtrack --congress=116 --session=2019 $@
+usc-run votes --govtrack --congress=116 --session=2020 $@
+usc-run votes --govtrack --congress=117 --session=2021 $@
+usc-run votes --govtrack --congress=117 --session=2022 $@
+usc-run votes --govtrack --congress=118 --session=2023 $@
+usc-run votes --govtrack --congress=118 --session=2024 $@
+usc-run votes --govtrack --congress=119 --session=2025 $@
+usc-run votes --govtrack --congress=119 --session=2026 $@

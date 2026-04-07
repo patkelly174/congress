@@ -468,8 +468,15 @@ def parse_house_vote(dom, vote):
         v["id"] = utils.lookup_legislator(vote["congress"], "rep", display_name, v["state"], v["party"], vote["date"], "bioguide", exclude=seen_ids)
 
         if v["id"] == None:
-            logging.error("[%s] Missing bioguide ID and name lookup failed for %s (%s-%s on %s)" % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"]))
-            raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))
+            if vote["congress"] > 107:
+                # IDs should always be present in modern data; a lookup failure here is a real problem.
+                logging.error("[%s] Missing bioguide ID and name lookup failed for %s (%s-%s on %s)" % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"]))
+                raise Exception("No bioguide ID for %s (%s-%s)" % (display_name, v["state"], v["party"]))
+            else:
+                # Early congresses lacked IDs in the source XML; name lookup is best-effort.
+                # Save the vote with an empty ID rather than dropping the entire record.
+                logging.warn("[%s] Could not resolve bioguide ID for %s (%s-%s on %s), saving vote without ID." % (vote["vote_id"], display_name, v["state"], v["party"], vote["date"]))
+                v["id"] = ""
         else:
             if vote["congress"] > 107:
                 logging.warn("[%s] Used name lookup for %s because bioguide ID was missing." % (vote["vote_id"], v["display_name"]))
@@ -525,7 +532,11 @@ def get_vote_category(vote_question):
         # common
         (r"^On Overriding the Veto", "veto-override"),
         (r"^On Presidential Veto", "veto-override"),
-        (r"Objections of the President (To The Contrary )?Not ?Withstanding", "veto-override"),  # order matters so must go before bill passage
+        (r"Objections? of ?the President (To The Contrary )?Not ?Withstanding", "veto-override"),  # order matters so must go before bill passage; "OFTHE" typo in historical data
+        (r"^PASSAGE, OBJECTION", "veto-override"),  # historical all-caps veto override form
+        (r"^POSTPONING PRESIDENTIAL VETO", "veto-override"),
+        (r"^Article [IVX]+:.*Impeach", "conviction"),  # impeachment article votes
+        (r"^Adopting (the )?(First|Second|Third|Fourth|[IVX]+) Article", "conviction"),  # impeachment article adoption votes
         (r"^On Passage", "passage"),
         (r"^On the Resolution of Ratification.*", "treaty"), # order matters so must go before other resolutions
         (r"^On (Agreeing to )?the (Joint |Concurrent )?Resolution", "passage"),
@@ -542,23 +553,74 @@ def get_vote_category(vote_question):
 
         # house only
         (r"^(On Motion (to|that the House) )?(Concur in|Concurring|Concurring in|On Concurring|On Concurring in|Agree to|On Agreeing to) (the )?Senate (Amendment|amdt|Adt)s?", "passage"),
-        (r"^(On Motion to )?Suspend (the )?Rules and (Agree|Concur|Pass)", "passage-suspension"),
-        (r"^Call of the House$", "quorum"),
-        (r"^Call by States$", "quorum"),
-        (r"^Election of the Speaker$", "leadership"),
+        (r"^(On Motion to )?Susp?end (the )?Rules( and)? (Agree|Concur|Pass)", "passage-suspension"),  # handles "Supend" typo and missing "and"
+        (r"^Call of the House( by States)?$", "quorum"),
+        (r"^Call (of (the House by|the Roll) )?[Bb]y [Ss]tates?$", "quorum"),
+        (r"^Election of (the )?Speaker$", "leadership"),
+
+        # amendment variants
+        (r"^On [Aa]greeing to the (Committee )?Substitute Amendment", "amendment"),
+        (r"^ON AGREEING TO SEC\. \d+", "amendment"),
+        (r"^STRIKE ALL AFTER ENACTING CLAUSE", "amendment"),  # strike-and-insert amendment form
+        (r"^[Ss]trike (all after )?the [Ee]nacting [Cc]lause", "amendment"),
+        (r"^On [Aa]greeing to (Part \d+|Subsection \w+) of the [Aa]mendment", "amendment"),
+        (r"^Motion to Amend", "amendment"),
+
+        # recommit conference report
+        (r"^(Motion to )?[Rr]ecommit (the )?(Conference Report|Conf\.? Rept?\.?) [Ww]ith [Ii]nstructions", "recommit"),
+        (r"^COMMIT TITLE \d+ WITH INSTRUCTIONS", "recommit"),
+        (r"^Commit [Ww]ith [Ii]nstructions", "recommit"),  # abbreviated form without "Re-"
+
+        # recede/concur/disagree (passage-related)
+        (r"^[Rr]ecede [Aa]nd [Cc]oncur", "passage"),
+        (r"^[Rr]ecede [Ff]rom", "passage"),
+        (r"^[Dd]isagree to S\.adt", "passage"),
+        (r"^Concur [Ii]n (All But |)?Sec\. \d+", "passage"),  # partial section concurrence
+        (r"^ADT TO MOTION TO RECEDE AND CONCUR", "passage"),  # historical abbreviated form
 
         # various procedural things
         # order matters, so these must go last
-        (r"^On Ordering the Previous Question", "procedural"),
+        (r"^On Ordering(?: the)? Previous Question", "procedural"),
         (r"^On Approving the Journal", "procedural"),
-        (r"^Will the House Now Consider the Resolution|On (Question of )?Consideration of the Resolution", "procedural"),
-        (r"^On (the )?Motion to Adjourn", "procedural"),
+        (r"^Will (the )?House [Nn]ow [Cc]onsider|On (Question of )?Consideration of the Resolution", "procedural"),
+        (r"^(?:On |Question on )?[Cc]onsideration of (the )?(bill|joint resolution|conference report)", "procedural"),
+        (r"^(?:On )?Question of Consideration", "procedural"),
+        (r"^(On )?(the )?Motion to Adjourn", "procedural"),
         (r"Authoriz(e|ing) Conferees", "procedural"),
-        (r"On the Point of Order|Sustaining the Ruling of the Chair", "procedural"),
+        (r"On the Point of Order|Sustain(ing)? (the )?[Rr]uling of (the )?[Cc]hair", "procedural"),
         (r"^On .*Motion ", "procedural"),  # $1 is a name like "Broun of Georgia"
+        (r"^Motion to Refer", "procedural"),
         (r"^On the Decision of the Chair", "procedural"),
         (r"^Whether the Amendment is Germane", "procedural"),
-        (r"^Table Appeal of the Ruling of the Chair", "procedural"),
+        (r"^Table (the )?Appeal (of|from) (the )?Ruling of (the )?Chair", "procedural"),
+        (r"^Table [Mm]otion to [Rr]econsider", "procedural"),
+        (r"^Lay the Resolution on the Table", "procedural"),
+        (r"^(Motion to )?[Ii]nstruct [Cc]onferees", "procedural"),
+        (r"^[Pp]revious [Qq]uestion on [Mm]otion to [Ii]nstruct [Cc]onferees", "procedural"),
+        (r"^(On )?(Clos(e|ing)|Motion to [Cc]lose) [Pp]ortions of (the )?[Cc]onference", "procedural"),
+        (r"^(On )?[Ee]ngrossment and [Tt]hird [Rr]eading", "procedural"),
+        (r"^PREV QUES ", "procedural"),  # historical abbreviated "previous question" form
+        (r"^On [Hh]olding [Aa] [Ss]ecret [Ss]ession", "procedural"),
+        (r"^Motion (to [Rr]esolve into|[Ff]or [Aa]) [Ss]ecret [Ss]ession", "procedural"),
+        (r"^On [Pp]ostponing to a [Dd]ate [Cc]ertain", "procedural"),
+        (r"^On [Aa]doption of Title", "procedural"),  # rules package title adoption votes
+        (r"^Motion to [Dd]ischarge (the )?[Cc]ommittee", "procedural"),
+        (r"^Table [Mm]otion to [Dd]ischarge", "procedural"),
+        (r"^(Table )?[Mm]otion to (table the )?[Aa]ppeal", "procedural"),
+        (r"^[Pp]ermit(ting)? (the )?[Uu]se of [Aa]n? [Ee]xhibit", "procedural"),
+        (r"^[Ss]hall the [Uu]se of [Aa]n? [Ee]xhibit be [Pp]ermitted", "procedural"),
+        (r"^On [Rr]esolving into [Cc]ommittee", "procedural"),
+        (r"^Table [Rr]econsider", "procedural"),
+        (r"^[Ss]trike (the )?[Ww]ords from the [Rr]ecord", "procedural"),
+        (r"^[Oo]rdering the [Pp]revious [Qq]uestion on the [Mm]otion to [Rr]efer", "procedural"),
+        (r"^[Pp]revious [Qq]uestion on [Mm]otion to [Rr]efer", "procedural"),
+        (r"^Call in Committee", "procedural"),
+        (r"^(Leave for |Permission for |Permit )?Committees? to [Ss]it", "procedural"),
+        (r"^Motion to [Rr]ise", "procedural"),
+        (r"^Motion to (declare )?[Rr]ecesses?", "procedural"),
+        (r"^Postpone", "procedural"),
+        (r"^(use of exhibits|[Ss]triking words from the record)", "procedural"),
+        (r"^[Oo]n [Hh]our of [Mm]eeting", "procedural"),
     )
 
     for regex, category in mapping:
