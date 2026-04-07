@@ -96,10 +96,7 @@ def proc_statute_volume(path, options):
     mods = etree.parse(path + "/mods.xml")
     mods_ns = {"mods": "http://www.loc.gov/mods/v3"}
 
-    # Load the THOMAS committee names for this Congress, which is our best
-    # bet for normalizing committee names in the GPO data.
     congress = mods.find("/mods:extension[2]/mods:congress", mods_ns).text
-    utils.fetch_committee_names(congress, options)
 
     logging.warn("Processing %s (Congress %s)" % (path, congress))
 
@@ -157,7 +154,7 @@ def proc_statute_volume(path, options):
             committee_info = {
                 "committee": committee,
                 "activity": [],  # XXX
-                "committee_id": utils.committee_names[committee] if committee in utils.committee_names else None,
+                "committee_id": None,
             }
             committees.append(committee_info)
 

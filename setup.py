@@ -40,7 +40,6 @@ setuptools.setup(
     scripts=[
         'scripts/bills.sh',
         'scripts/statutes.sh',
-        'scripts/votes.sh',
-        'scripts/voteview.sh'
+        'scripts/votes.sh'
     ],
 )

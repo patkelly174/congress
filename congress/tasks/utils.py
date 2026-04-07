@@ -151,18 +151,6 @@ def split_vote_id(vote_id):
     # for historical votes before sessions were basically calendar years.
     return re.match("^(h|s)(\d+)-(\d+).(\d\d\d\d|[0-9A-Z])$", vote_id).groups()
 
-# nomination_type (always PN), nomination_number, congress
-#   nomination_number is usually a number, but can be hyphenated, e.g. PN64-01-111
-#   which would produce a nomination_number of "64-01"
-
-
-def split_nomination_id(nomination_id):
-    try:
-        return re.match("^([A-z]{2})([\d-]+)-(\d+)$", nomination_id).groups()
-    except Exception as e:
-        logging.error("Unabled to parse %s" % nomination_id)
-        return (None, None, None)
-
 
 def process_set(to_fetch, fetch_func, options, *extra_args):
     errors = []

@@ -83,9 +83,6 @@ def output_vote(vote, options, id_type=None):
         options=options
     )
 
-    # What kind of IDs are we passed for Members of Congress?
-    # For current data, we infer from the chamber. For historical data from voteview,
-    # we're passed the type in id_type, which is set to "bioguide".
     if not id_type:
         id_type = ("bioguide" if vote["chamber"] == "h" else "lis")
 
@@ -96,10 +93,7 @@ def output_vote(vote, options, id_type=None):
     root.set("session", str(vote["congress"]))
     root.set("year", str(vote["date"].year))
     root.set("roll", str(vote["number"]))
-    if "voteview" in vote["source_url"]:
-        root.set("source", "keithpoole")
-    else:
-        root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
+    root.set("source", "house.gov" if vote["chamber"] == "h" else "senate.gov")
 
     root.set("datetime", utils.format_datetime(vote['date']))
     root.set("updated", utils.format_datetime(vote['updated_at']))
@@ -164,8 +158,6 @@ def output_vote(vote, options, id_type=None):
             n.set("value", option)
             if v != "VP":
                 n.set("state", v["state"])
-                if v.get("voteview_votecode_extra") is not None:
-                    n.set("voteview_votecode_extra", v["voteview_votecode_extra"])
 
     xmloutput = etree.tostring(root, pretty_print=True, encoding="unicode")
 
